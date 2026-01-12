@@ -1,4 +1,3 @@
-
 -- 基础服务
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
@@ -7,9 +6,13 @@ local StarterGui = game:GetService("StarterGui")
 local Workspace = game:GetService("Workspace")
 local UserInputService = game:GetService("UserInputService")
 local TweenService = game:GetService("TweenService")
+local HttpService = game:GetService("HttpService")
 local LocalPlayer = Players.LocalPlayer
 local PlayerGui = LocalPlayer:WaitForChild("PlayerGui")
 local Camera = Workspace.CurrentCamera
+
+-- 加载 WindUI
+local WindUI = loadstring(game:HttpGet("https://github.com/Footagesus/WindUI/releases/latest/download/main.lua"))()
 
 -- 关闭摄像机震动
 pcall(function()
@@ -437,200 +440,88 @@ local function TeleportTo(position)
     end
 end
 
--- ===================== 悬浮球 + 居中可拖动窗口 =====================
-local function createFloatingGui()
-    local existing = PlayerGui:FindFirstChild("DaNiuRenFloatingGui")
-    if existing then existing:Destroy() end
+-- ===================== WindUI 界面 =====================
+local Window = WindUI:CreateWindow({
+    Title = "大牛人脚本",
+    Icon = "rbxassetid://129260712070622",
+    IconThemed = true,
+    Author = "大牛人",
+    Folder = "DaNiuRen",
+    Size = UDim2.fromOffset(580, 650),
+    Transparent = true,
+    Theme = "Dark",
+    User = {
+        Enabled = true,
+        Callback = function() print("大牛人脚本已激活") end,
+        Anonymous = true
+    },
+    SideBarWidth = 200,
+    ScrollBarEnabled = true,
+})
 
-    local screenGui = Instance.new("ScreenGui")
-    screenGui.Name = "DaNiuRenFloatingGui"
-    screenGui.ResetOnSpawn = false
-    screenGui.Parent = PlayerGui
-    screenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
-    screenGui.DisplayOrder = 9999
+-- 顶部按钮
+Window:CreateTopbarButton("Refresh", "refresh-ccw", function() 
+    WindUI:Notify({
+        Title = "刷新成功",
+        Content = "脚本功能已重新加载",
+        Duration = 2
+    })
+end, 990)
 
-    -- 悬浮球按钮
-    local floatBtn = Instance.new("TextButton")
-    floatBtn.Name = "FloatingButton"
-    floatBtn.Parent = screenGui
-    floatBtn.Size = UDim2.new(0, 50, 0, 50)
-    floatBtn.Position = UDim2.new(0.9, -60, 0.8, -60)
-    floatBtn.BackgroundColor3 = Color3.fromRGB(50, 100, 200)
-    floatBtn.Text = "☰"
-    floatBtn.TextColor3 = Color3.new(1,1,1)
-    floatBtn.Font = Enum.Font.GothamBold
-    floatBtn.TextSize = 24
-    floatBtn.BorderSizePixel = 0
-    floatBtn.Active = true
-    floatBtn.Draggable = true
+Window:CreateTopbarButton("Help", "question-circle", function()
+    Window:Dialog({
+        Title = "使用帮助",
+        Content = "按 H 键显示/隐藏界面\n所有功能保持原逻辑不变\n问题请联系作者",
+        Buttons = {
+            {
+                Title = "知道了",
+                Variant = "Primary"
+            }
+        }
+    })
+end, 989)
 
-    -- 圆形
-    local corner = Instance.new("UICorner")
-    corner.Parent = floatBtn
-    corner.CornerRadius = UDim.new(1, 0)
+-- 打开按钮设置
+Window:EditOpenButton({
+    Title = "大牛人脚本",
+    Icon = "bullhorn",
+    CornerRadius = UDim.new(0, 16),
+    StrokeThickness = 2,
+    Color = ColorSequence.new(
+        Color3.fromHex("FF6B6B"),
+        Color3.fromHex("4ECDC4")
+    ),
+    Draggable = true,
+})
 
-    -- 功能窗口
-    local window = Instance.new("Frame")
-    window.Name = "MainWindow"
-    window.Parent = screenGui
-    window.Size = UDim2.new(0, 350, 0, 650) -- 增大窗口高度以容纳新按钮
-    window.Position = UDim2.new(0.5, -175, 0.5, -325) -- 屏幕正中间
-    window.BackgroundColor3 = Color3.fromRGB(20,20,20)
-    window.BackgroundTransparency = 0.1
-    window.BorderSizePixel = 0
-    window.Visible = false
+-- 创建标签页
+local Tabs = {}
+do
+    Tabs.MainTab = Window:Tab({ Title = "主功能", Icon = "home" })
+    Tabs.AttackTab = Window:Tab({ Title = "攻击设置", Icon = "sword" })
+    Tabs.MovementTab = Window:Tab({ Title = "移动设置", Icon = "run" })
+    Tabs.ESPTab = Window:Tab({ Title = "ESP设置", Icon = "eye" })
+    Tabs.TeleportTab = Window:Tab({ Title = "传送功能", Icon = "teleport" })
+    Tabs.ScriptsTab = Window:Tab({ Title = "外部脚本", Icon = "code" })
+end
 
-    -- 窗口圆角
-    local winCorner = Instance.new("UICorner")
-    winCorner.Parent = window
-    winCorner.CornerRadius = UDim.new(0.1, 0)
+-- ===================== 主功能标签页 =====================
+Tabs.MainTab:Paragraph({
+    Title = "核心功能",
+    Desc = "脚本主要控制开关",
+    Image = "bullhorn",
+    ImageSize = 40,
+    Color = "Blue"
+})
 
-    -- 标题栏（用于拖动）
-    local titleBar = Instance.new("TextLabel")
-    titleBar.Parent = window
-    titleBar.Size = UDim2.new(1,0,0,35)
-    titleBar.BackgroundColor3 = Color3.fromRGB(40,40,40)
-    titleBar.Text = "大牛人中心（点击标题栏拖动）"
-    titleBar.TextColor3 = Color3.new(1,1,1)
-    titleBar.Font = Enum.Font.GothamBold
-    titleBar.TextSize = 16
-    titleBar.Active = true
-    titleBar.Selectable = true
-
-    -- 滚动容器
-    local scroll = Instance.new("ScrollingFrame")
-    scroll.Parent = window
-    scroll.Size = UDim2.new(1,0,1,-35)
-    scroll.Position = UDim2.new(0,0,0,35)
-    scroll.BackgroundTransparency = 1
-    scroll.ScrollBarThickness = 5
-    scroll.CanvasSize = UDim2.new(1,0,0,950) -- 增大滚动区域高度
-
-    -- UI 工具函数
-    local y = 0
-
-    local function addButton(text, callback)
-        local btn = Instance.new("TextButton")
-        btn.Parent = scroll
-        btn.Size = UDim2.new(1, -10, 0, 35)
-        btn.Position = UDim2.new(0,5,0,y)
-        btn.BackgroundColor3 = Color3.fromRGB(50,80,120)
-        btn.Text = text
-        btn.TextColor3 = Color3.new(1,1,1)
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 14
-        btn.MouseButton1Click:Connect(function() pcall(callback) end)
-
-        local c = Instance.new("UICorner")
-        c.Parent = btn
-        c.CornerRadius = UDim.new(0.2,0)
-
-        y += 40
-        return btn
-    end
-
-    local function addToggle(text, def, callback)
-        local frame = Instance.new("Frame")
-        frame.Parent = scroll
-        frame.Size = UDim2.new(1, -10, 0, 35)
-        frame.Position = UDim2.new(0,5,0,y)
-        frame.BackgroundTransparency = 1
-        y += 40
-
-        local lbl = Instance.new("TextLabel")
-        lbl.Parent = frame
-        lbl.Size = UDim2.new(0,150,1,0)
-        lbl.BackgroundTransparency = 1
-        lbl.Text = text
-        lbl.TextColor3 = Color3.new(1,1,1)
-        lbl.Font = Enum.Font.Gotham
-        lbl.TextSize = 14
-
-        local toggle = Instance.new("TextButton")
-        toggle.Parent = frame
-        toggle.Size = UDim2.new(0,70,0,30)
-        toggle.Position = UDim2.new(1,-75,0,2.5)
-        toggle.BackgroundColor3 = def and Color3.fromRGB(50,150,50) or Color3.fromRGB(150,50,50)
-        toggle.Text = def and "开" or "关"
-        toggle.TextColor3 = Color3.new(1,1,1)
-        toggle.Font = Enum.Font.GothamBold
-        toggle.TextSize = 12
-
-        local c = Instance.new("UICorner")
-        c.Parent = toggle
-        c.CornerRadius = UDim.new(0.2,0)
-
-        toggle.MouseButton1Click:Connect(function()
-            local newState = toggle.Text == "关"
-            toggle.BackgroundColor3 = newState and Color3.fromRGB(50,150,50) or Color3.fromRGB(150,50,50)
-            toggle.Text = newState and "开" or "关"
-            callback(newState)
-        end)
-
-        return toggle
-    end
-
-    local function addInput(text, placeholder, def, callback)
-        local frame = Instance.new("Frame")
-        frame.Parent = scroll
-        frame.Size = UDim2.new(1, -10, 0, 40)
-        frame.Position = UDim2.new(0,5,0,y)
-        frame.BackgroundTransparency = 1
-        y += 45
-
-        local lbl = Instance.new("TextLabel")
-        lbl.Parent = frame
-        lbl.Size = UDim2.new(0,150,1,0)
-        lbl.BackgroundTransparency = 1
-        lbl.Text = text
-        lbl.TextColor3 = Color3.new(1,1,1)
-        lbl.Font = Enum.Font.Gotham
-        lbl.TextSize = 14
-
-        local input = Instance.new("TextBox")
-        input.Parent = frame
-        input.Size = UDim2.new(0,110,0,30)
-        input.Position = UDim2.new(0,160,0,5)
-        input.BackgroundColor3 = Color3.fromRGB(50,50,50)
-        input.Text = def
-        input.TextColor3 = Color3.new(1,1,1)
-        input.Font = Enum.Font.Gotham
-        input.TextSize = 14
-        input.PlaceholderText = placeholder
-
-        local btn = Instance.new("TextButton")
-        btn.Parent = frame
-        btn.Size = UDim2.new(0,60,0,30)
-        btn.Position = UDim2.new(0,280,0,5)
-        btn.BackgroundColor3 = Color3.fromRGB(50,150,50)
-        btn.Text = "应用"
-        btn.TextColor3 = Color3.new(1,1,1)
-        btn.Font = Enum.Font.Gotham
-        btn.TextSize = 12
-
-        local c = Instance.new("UICorner")
-        c.Parent = btn
-        c.CornerRadius = UDim.new(0.2,0)
-
-        btn.MouseButton1Click:Connect(function()
-            callback(input.Text)
-        end)
-
-        return input
-    end
-
-    -- ===================== 添加所有功能 =====================
-
-    -- 摄像机距离
-    addInput("摄像机距离", "输入数值", tostring(LocalPlayer.CameraMaxZoomDistance or 128), function(text)
-        local v = tonumber(text)
-        if v then LocalPlayer.CameraMaxZoomDistance = v end
-    end)
-
-    -- 自动 v4
-    local autoV4State = false
-    local autoV4Task = nil
-    addToggle("自动 v4", false, function(state)
+-- 自动V4
+local autoV4State = false
+local autoV4Task = nil
+Tabs.MainTab:Toggle({
+    Title = "自动 V4",
+    Desc = "自动调用觉醒技能",
+    Value = false,
+    Callback = function(state)
         autoV4State = state
         if autoV4Task then task.cancel(autoV4Task); autoV4Task = nil end
         if state then
@@ -640,181 +531,239 @@ local function createFloatingGui()
                     task.wait(1)
                 end
             end)
+            WindUI:Notify({ Title = "自动V4", Content = "已开启", Duration = 1.5 })
+        else
+            WindUI:Notify({ Title = "自动V4", Content = "已关闭", Duration = 1.5 })
         end
-    end)
+    end
+})
 
-    -- 快速攻击
-    addToggle("快速攻击", _G.FastAttack, function(state)
+-- 摄像机距离
+Tabs.MainTab:Input({
+    Title = "摄像机距离",
+    Desc = "调整视角距离",
+    Value = tostring(LocalPlayer.CameraMaxZoomDistance or 128),
+    Placeholder = "输入数值",
+    Callback = function(input)
+        local v = tonumber(input)
+        if v then
+            LocalPlayer.CameraMaxZoomDistance = v
+            WindUI:Notify({ Title = "摄像机距离", Content = "已设置为: " .. v, Duration = 1.5 })
+        end
+    end
+})
+
+-- ===================== 攻击设置标签页 =====================
+Tabs.AttackTab:Paragraph({
+    Title = "攻击参数",
+    Desc = "调整攻击相关设置",
+    Image = "sword",
+    ImageSize = 40,
+    Color = "Red"
+})
+
+-- 快速攻击开关
+Tabs.AttackTab:Toggle({
+    Title = "攻击玩家和怪物",
+    Desc = "开启/关闭自动攻击玩家和怪物",
+    Value = _G.FastAttack,
+    Callback = function(state)
         if _ENV.rz_FastAttack then
             _ENV.rz_FastAttack.IsRunning = state
             _G.FastAttack = state
         else
             _G.FastAttack = state
         end
-    end)
+        WindUI:Notify({ Title = "快速攻击", Content = state and "已开启" or "已关闭", Duration = 1.5 })
+    end
+})
 
-    -- 攻击范围（2500）
-    addInput("攻击范围", "1-5000", "2500", function(text)
-        local num = tonumber(text) or 2500
-        num = math.floor(math.clamp(num, 1, 5000))
+-- 攻击范围
+Tabs.AttackTab:Slider({
+    Title = "攻击范围",
+    Desc = "调整攻击检测距离（1-5000）",
+    Value = {
+        Min = 1,
+        Max = 5000,
+        Default = 2500,
+    },
+    Callback = function(value)
+        local num = math.floor(value)
         if _ENV.rz_FastAttack then
             _ENV.rz_FastAttack.Distance = num
         else
             if Module.FastAttack then Module.FastAttack.Distance = num end
         end
-    end)
+        WindUI:Notify({ Title = "攻击范围", Content = "已设置为: " .. num, Duration = 1.5 })
+    end
+})
 
-    -- 攻速（0.3）
-    addInput("攻击速度", "0.0005-2", "0.3", function(text)
-        local num = tonumber(text) or 0.3
-        if num < MIN_CLICK_DELAY then num = MIN_CLICK_DELAY end
-        if num > 2 then num = 2 end
-        Settings.ClickDelay = num
-    end)
+-- 攻击速度
+Tabs.AttackTab:Slider({
+    Title = "攻击速度",
+    Desc = "调整攻击间隔（0.0005-2）",
+    Step = 0.01,
+    Value = {
+        Min = MIN_CLICK_DELAY,
+        Max = 2,
+        Default = 0.3,
+    },
+    Callback = function(value)
+        Settings.ClickDelay = value
+        WindUI:Notify({ Title = "攻击速度", Content = "已设置为: " .. string.format("%.2f", value), Duration = 1.5 })
+    end
+})
 
-    -- 移动加速
-    addInput("移动加速", "输入数值", tostring(getfenv().translateSpeed or 50), function(text)
-        local v = tonumber(text)
-        if v then getfenv().translateSpeed = v end
-    end)
+-- 自动点击开关
+Tabs.AttackTab:Toggle({
+    Title = "自动攻击",
+    Desc = "开启后自动持续攻击",
+    Value = Settings.AutoClick,
+    Callback = function(state)
+        Settings.AutoClick = state
+        WindUI:Notify({ Title = "自动点击", Content = state and "已开启" or "已关闭", Duration = 1.5 })
+    end
+})
 
-    addToggle("加速开关", false, function(state)
+-- ===================== 移动设置标签页 =====================
+Tabs.MovementTab:Paragraph({
+    Title = "移动参数",
+    Desc = "调整移动相关设置",
+    Image = "run",
+    ImageSize = 40,
+    Color = "Green"
+})
+
+-- 移动加速数值
+Tabs.MovementTab:Slider({
+    Title = "移动加速强度",
+    Desc = "调整移动速度倍率（1-2000）",
+    Value = {
+        Min = 1,
+        Max = 2000,
+        Default = 50,
+    },
+    Callback = function(value)
+        getfenv().translateSpeed = value
+        WindUI:Notify({ Title = "移动加速", Content = "强度已设置为: " .. value, Duration = 1.5 })
+    end
+})
+
+-- 移动加速开关
+Tabs.MovementTab:Toggle({
+    Title = "移动加速开关",
+    Desc = "开启/关闭移动加速功能",
+    Value = false,
+    Callback = function(state)
         enableTranslateAccel(state)
-    end)
+        WindUI:Notify({ Title = "移动加速", Content = state and "已开启" or "已关闭", Duration = 1.5 })
+    end
+})
 
-    -- ESP
-    addToggle("ESP总开关", ESPConfig.MainSwitch, function(state)
+-- ===================== ESP设置标签页 =====================
+
+-- ESP总开关
+Tabs.ESPTab:Toggle({
+    Title = "ESP总开关",
+    Desc = "控制所有ESP功能的开启/关闭",
+    Value = ESPConfig.MainSwitch,
+    Callback = function(state)
         ESPConfig.MainSwitch = state
         UpdateAllESP()
-    end)
+        WindUI:Notify({ Title = "ESP功能", Content = state and "已开启" or "已关闭", Duration = 1.5 })
+    end
+})
 
-    addToggle("ESP名字距离", ESPConfig.ShowNameDistance, function(state)
+-- ESP名字距离
+Tabs.ESPTab:Toggle({
+    Title = "显示名字和距离",
+    Desc = "显示玩家名字和距离信息",
+    Value = ESPConfig.ShowNameDistance,
+    Callback = function(state)
         ESPConfig.ShowNameDistance = state
         UpdateAllESP()
-    end)
+    end
+})
 
-    addToggle("ESP血量", ESPConfig.ShowHealth, function(state)
+-- ESP血量
+Tabs.ESPTab:Toggle({
+    Title = "显示血量",
+    Desc = "显示玩家当前血量",
+    Value = ESPConfig.ShowHealth,
+    Callback = function(state)
         ESPConfig.ShowHealth = state
         UpdateAllESP()
-    end)
+    end
+})
 
-    addToggle("ESP射线", ESPConfig.ShowTracer, function(state)
+-- ESP射线
+Tabs.ESPTab:Toggle({
+    Title = "显示射线",
+    Desc = "显示从屏幕中心到玩家的射线",
+    Value = ESPConfig.ShowTracer,
+    Callback = function(state)
         ESPConfig.ShowTracer = state
         UpdateAllESP()
-    end)
+    end
+})
 
-    -- 传送
-    addButton("传送一海", function()
-        pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelMain") end)
-    end)
+-- ===================== 传送功能标签页 =====================
 
-    addButton("传送二海", function()
-        pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelDressrosa") end)
-    end)
+-- 传送按钮
+local teleportButtons = {
+    { "传送一海", function() pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelMain") end) end },
+    { "传送二海", function() pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelDressrosa") end) end },
+    { "传送三海", function() pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelZou") end) end },
+    { "天鹅房间", function() TeleportTo(Vector3.new(-287.37, 305.81, 592.98)) end },
+    { "豪宅", function() TeleportTo(Vector3.new(2286.93, 15.06, 910.51)) end }
+}
 
-    addButton("传送三海", function()
-        pcall(function() ReplicatedStorage.Remotes.CommF_:InvokeServer("TravelZou") end)
-    end)
-
-    addButton("天鹅房间", function()
-        TeleportTo(Vector3.new(-287.37, 305.81, 592.98))
-    end)
-
-    addButton("豪宅", function()
-        TeleportTo(Vector3.new(2286.93, 15.06, 910.51))
-    end)
-
-    -- 外部脚本
-    addButton("飞行脚本", function()
-        pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/kismile236/rjrym/refs/heads/main/fly.lua"))() end)
-    end)
-
-    addButton("FPS优化", function()
-        pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/kismile236/rjrym/refs/heads/main/fpsboost"))() end)
-    end)
-
-    addButton("HOHO UI", function()
-        pcall(function() loadstring(game:HttpGet('https://raw.githubusercontent.com/acsu123/HOHO_H/main/Loading_UI'))() end)
-    end)
-
-    -- 新增：飞行功能
-    addButton("飞行",function()
-        pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/XNEOFF/FlyGuiV3/main/FlyGuiV3.txt"))() end)
-    end)
-
-    -- 新增：法天象地功能
-    addButton("法天象地",function()
-        pcall(function() loadstring(game:HttpGet("https://raw.githubusercontent.com/kismile36/rjrzhongxing/refs/heads/main/rjr/fatianxiangdi"))() end)
-    end)
-
-    -- 悬浮球点击
-    floatBtn.MouseButton1Click:Connect(function()
-        window.Visible = not window.Visible
-        if window.Visible then
-            floatBtn.Text = "✕"
-            floatBtn.BackgroundColor3 = Color3.fromRGB(200,50,50)
-        else
-            floatBtn.Text = "☰"
-            floatBtn.BackgroundColor3 = Color3.fromRGB(50,100,200)
+for _, btnData in ipairs(teleportButtons) do
+    Tabs.TeleportTab:Button({
+        Title = btnData[1],
+        Variant = "Primary",
+        Callback = function()
+            btnData[2]()
+            WindUI:Notify({ Title = "传送", Content = "已传送到: " .. btnData[1], Duration = 1.5 })
         end
-    end)
+    })
+end
 
-    -- 真正的拖动功能（修复版）
-    local dragging = false
-    local dragStart = nil
-    local startPos = nil
+-- ===================== 外部脚本标签页 =====================
 
-    titleBar.InputBegan:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            dragging = true
-            dragStart = input.Position
-            startPos = window.Position
-            input.Changed:Connect(function()
-                if input.UserInputState == Enum.UserInputState.End then
-                    dragging = false
-                end
+-- 外部脚本按钮
+local externalScripts = {
+    { "Aimbot 瞄准", "https://raw.githubusercontent.com/98krgqg/aimbot/refs/heads/main/aimbot" },
+    { "FPS优化", "https://raw.githubusercontent.com/98krgqg/fps/refs/heads/main/111" },
+    { "飞行功能", "https://raw.githubusercontent.com/98krgqg/fly/refs/heads/main/daniu" },
+    { "法天象地", "https://raw.githubusercontent.com/98krgqg/ftxd/refs/heads/main/ftxd" }
+}
+
+for _, scriptData in ipairs(externalScripts) do
+    Tabs.ScriptsTab:Button({
+        Title = scriptData[1],
+        Variant = "Secondary",
+        Callback = function()
+            pcall(function()
+                loadstring(game:HttpGet(scriptData[2]))()
+                WindUI:Notify({ Title = "脚本加载", Content = scriptData[1] .. " 已加载", Duration = 2 })
             end)
         end
-    end)
-
-    UserInputService.InputChanged:Connect(function(input)
-        if input.UserInputType == Enum.UserInputType.MouseMovement and dragging then
-            local delta = input.Position - dragStart
-            window.Position = UDim2.new(
-                startPos.X.Scale,
-                startPos.X.Offset + delta.X,
-                startPos.Y.Scale,
-                startPos.Y.Offset + delta.Y
-            )
-        end
-    end)
-
-    return screenGui
+    })
 end
 
--- 创建悬浮球
-local gui = createFloatingGui()
-
--- Insert 键开关
-local toggleKey = Enum.KeyCode.Insert
-getgenv().ToggleDaNiuRenGui = function()
-    if gui then
-        gui.Enabled = not gui.Enabled
-    end
-end
-
+-- ===================== H 键快捷键设置 =====================
+local toggleKey = Enum.KeyCode.H
 UserInputService.InputBegan:Connect(function(input, gameProcessed)
     if gameProcessed then return end
     if input.KeyCode == toggleKey then
         if UserInputService:GetFocusedTextBox() then return end
-        gui.Enabled = not gui.Enabled
-        pcall(function()
-            StarterGui:SetCore("SendNotification", {
-                Title = "大牛人脚本",
-                Text = gui.Enabled and "悬浮球已显示" or "悬浮球已隐藏",
-                Duration = 1.5
-            })
-        end)
+        Window:Toggle()
+        WindUI:Notify({
+            Title = "界面控制",
+            Content = Window:IsOpen() and "界面已显示" or "界面已隐藏",
+            Duration = 1.5
+        })
     end
 end)
 
@@ -822,14 +771,18 @@ end)
 pcall(function()
     StarterGui:SetCore("SendNotification",{
         Title = "大牛人脚本",
-        Text = "悬浮球已加载（按 Insert 隐藏/显示）",
+        Text = "WindUI 已加载（按 H 键隐藏/显示）",
         Duration = 5,
     })
 end)
 
+-- 关闭回调
+Window:OnClose(function()
+    print("大牛人脚本界面已关闭")
+end)
+
 return {
-    GUI = gui,
-    Toggle = getgenv().ToggleDaNiuRenGui,
+    Window = Window,
     FastAttack = _ENV.rz_FastAttack or Module.FastAttack,
     Settings = Settings,
     ESPConfig = ESPConfig
