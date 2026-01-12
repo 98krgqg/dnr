@@ -497,7 +497,6 @@ Window:EditOpenButton({
 -- 创建标签页
 local Tabs = {}
 do
-    Tabs.MainTab = Window:Tab({ Title = "主功能", Icon = "home" })
     Tabs.AttackTab = Window:Tab({ Title = "攻击设置", Icon = "sword" })
     Tabs.MovementTab = Window:Tab({ Title = "移动设置", Icon = "run" })
     Tabs.ESPTab = Window:Tab({ Title = "ESP设置", Icon = "eye" })
@@ -506,52 +505,8 @@ do
 end
 
 -- ===================== 主功能标签页 =====================
-Tabs.MainTab:Paragraph({
-    Title = "核心功能",
-    Desc = "脚本主要控制开关",
-    Image = "bullhorn",
-    ImageSize = 40,
-    Color = "Blue"
-})
 
--- 自动V4
-local autoV4State = false
-local autoV4Task = nil
-Tabs.MainTab:Toggle({
-    Title = "自动 V4",
-    Desc = "自动调用觉醒技能",
-    Value = false,
-    Callback = function(state)
-        autoV4State = state
-        if autoV4Task then task.cancel(autoV4Task); autoV4Task = nil end
-        if state then
-            autoV4Task = task.spawn(function()
-                while autoV4State do
-                    callAwakeningRemote()
-                    task.wait(1)
-                end
-            end)
-            WindUI:Notify({ Title = "自动V4", Content = "已开启", Duration = 1.5 })
-        else
-            WindUI:Notify({ Title = "自动V4", Content = "已关闭", Duration = 1.5 })
-        end
-    end
-})
 
--- 摄像机距离
-Tabs.MainTab:Input({
-    Title = "摄像机距离",
-    Desc = "调整视角距离",
-    Value = tostring(LocalPlayer.CameraMaxZoomDistance or 128),
-    Placeholder = "输入数值",
-    Callback = function(input)
-        local v = tonumber(input)
-        if v then
-            LocalPlayer.CameraMaxZoomDistance = v
-            WindUI:Notify({ Title = "摄像机距离", Content = "已设置为: " .. v, Duration = 1.5 })
-        end
-    end
-})
 
 -- ===================== 攻击设置标签页 =====================
 Tabs.AttackTab:Paragraph({
@@ -660,6 +615,78 @@ Tabs.MovementTab:Toggle({
     end
 })
 
+-- 自动V4
+local autoV4State = false
+local autoV4Task = nil
+Tabs.AttackTab:Toggle({
+    Title = "自动 V4",
+    Desc = "自动调用觉醒技能",
+    Value = false,
+    Callback = function(state)
+        autoV4State = state
+        if autoV4Task then task.cancel(autoV4Task); autoV4Task = nil end
+        if state then
+            autoV4Task = task.spawn(function()
+                while autoV4State do
+                    callAwakeningRemote()
+                    task.wait(1)
+                end
+            end)
+            WindUI:Notify({ Title = "自动V4", Content = "已开启", Duration = 1.5 })
+        else
+            WindUI:Notify({ Title = "自动V4", Content = "已关闭", Duration = 1.5 })
+        end
+    end
+})
+-- 自动V3
+local autoV3Task = nil
+local function callRaceV3Remote()
+    local Remotes = ReplicatedStorage:FindFirstChild("Remotes")
+    if not Remotes then return end
+    local CommE = Remotes:FindFirstChild("CommE")
+    if not CommE then return end
+    pcall(function()
+        CommE:FireServer("ActivateAbility")
+    end)
+end
+
+Tabs.AttackTab:Toggle({
+    Title = "自动V3",
+    Value = false,
+    Callback = function(state)
+        _G.ToggleStates["自动V3"] = state
+        if autoV3Task then
+            task.cancel(autoV3Task)
+            autoV3Task = nil
+        end
+        if state then
+            autoV3Task = task.spawn(function()
+                while _G.ToggleStates["自动V3"] do
+                    callRaceV3Remote()
+                    task.wait(1)
+                end
+                autoV3Task = nil
+            end)
+            WindUI:Notify({ Title = "自动V3", Content = "已开启", Duration = 2 })
+        else
+            WindUI:Notify({ Title = "自动V3", Content = "已关闭", Duration = 2 })
+        end
+    end
+})
+-- 摄像机距离
+Tabs.AttackTab:Input({
+    Title = "摄像机距离",
+    Desc = "调整视角距离",
+    Value = tostring(LocalPlayer.CameraMaxZoomDistance or 128),
+    Placeholder = "输入数值",
+    Callback = function(input)
+        local v = tonumber(input)
+        if v then
+            LocalPlayer.CameraMaxZoomDistance = v
+            WindUI:Notify({ Title = "摄像机距离", Content = "已设置为: " .. v, Duration = 1.5 })
+        end
+    end
+})
 -- ===================== ESP设置标签页 =====================
 
 -- ESP总开关
